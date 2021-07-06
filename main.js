@@ -44,8 +44,8 @@
         label: '単位ピクセルの大きさ',
         save: true,
         value: 20,
-        min: 1,
-        max: 40
+        min: 30,
+        max: 80
     });
     const cvHolder = $('<div>').appendTo(footer).css({position: 'relative'});
     const makeLayer = () => {
@@ -66,7 +66,7 @@
         for(let i = 0; i < h; i += unit) ctx.fillRect(0, i, w, 1);
     };
     const mainCv = makeLayer();
-    $(window).on('mousedown mousemove touchstart touchmove', e => draw(e)).on('contextmenu', () => false);
+    $(cvHolder).on('mousedown mousemove touchstart touchmove', e => draw(e)).on('contextmenu', () => false);
     let activCv = mainCv;
     const draw = e => {
         if(!e.which) return;
