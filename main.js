@@ -1,58 +1,99 @@
-(async()=>{
-    const {importAll, getScript} = await import('https://rpgen3.github.io/mylib/export/import.mjs');
-    await getScript('https://rpgen3.github.io/lib/lib/jquery-3.5.1.min.js');
-    const rpgen3 = await importAll([
-        'input'
-    ].map(v => `https://rpgen3.github.io/mylib/export/${v}.mjs`));
+(async () => {
+    const {importAll, getScript, importAllSettled} = await import(`https://rpgen3.github.io/mylib/export/import.mjs`);
+    await getScript('https://code.jquery.com/jquery-3.3.1.min.js');
+    const $ = window.$;
     const html = $('body').empty().css({
         'text-align': 'center',
         padding: '1em',
-        //'user-select': 'none'
+        'user-select': 'none'
     });
-    const header = $('<div>').appendTo(html),
-          body = $('<div>').appendTo(html),
-          footer = $('<div>').appendTo(html);
-    const cvHolder = $('<div>').appendTo(body).css({
-        position: 'relative',
-        overflow: 'scroll',
-        width: $(window).width() * 0.7,
-        height: $(window).height() * 0.7
+    const head = $('<dl>').appendTo(html),
+          body = $('<dl>').appendTo(html).hide(),
+          foot = $('<dl>').appendTo(html).hide();
+    const rpgen3 = await importAll([
+        'input',
+        'util',
+        'random'
+    ].map(v => `https://rpgen3.github.io/mylib/export/${v}.mjs`));
+    const {LayeredCanvas, lerp} = await importAll([
+        'LayeredCanvas',
+        'lerp'
+    ].map(v => `https://rpgen3.github.io/maze/mjs/sys/${v}.mjs`));
+    const addBtn = (h, ttl, func) => $('<button>').appendTo(h).text(ttl).on('click', func);
+    const msg = (() => {
+        const elm = $('<div>').appendTo(body);
+        return (str, isError) => $('<span>').appendTo(elm.empty()).text(str).css({
+            color: isError ? 'red' : 'blue',
+            backgroundColor: isError ? 'pink' : 'lightblue'
+        });
+    })();
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const [inputW, inputH] = ['幅', '高さ'].map(label => rpgen3.addInputNum(head,{
+        label, save: true,
+        step: 2,
+        max: 299,
+        min: 5,
+        value: 25
+    }));
+    let g_maze = [],
+        g_w = -1,
+        g_h = -1;
+    const toI = (x, y) => x + y * g_w;
+    const toXY = i => {
+        const x = i % g_w,
+              y = i / g_w | 0;
+        return [x, y];
+    };
+    addBtn(head, '初期化', () => {
+        [g_w, g_h] = [inputW(), inputH()];
+        g_maze = [...Array(g_w * g_h).fill(false)];
+        const w = $(window).width();
+        let unit = -1;
+        const divide = 0.9 / inputW;
+        if(w > 500) unit = Math.max(500, w * 0.5) * divide | 0;
+        if(unit < 5) unit = w * divide | 0;
+        LayeredCanvas.update(unit, g_w, g_h);
+        cvScale.drawScale();
+        body.add(foot).show();
     });
-    const inputZoom = rpgen3.addInputNum(header, {
-        label: 'zoom rate[%]',
-        value: 1,
-        min: 1,
-        max: 9
+    const eraseFlag = rpgen3.addInputBool(foot, {
+        label: '消しゴム'
     });
-    inputZoom.elm.on('change', () => {
-        $('canvas').css('width', inputZoom * 400);
+    const hideScale = rpgen3.addInputBool(foot, {
+        label: '目盛りを非表示'
     });
-    class Canvas {
-        constructor(parentNode){
-            const zoom = inputZoom * 400;
-            const ctx = $('<canvas>').appendTo(parentNode).prop({
-                width: 400, height: 200
-            }).css({
-                position: 'absolute',
-                //display: 'block',
-                left: 0, top: 0, width: zoom
-            }).get(0).getContext('2d');
-            // ドットを滑らかにしないおまじない
-            ctx.mozImageSmoothingEnabled = false;
-            ctx.webkitImageSmoothingEnabled = false;
-            ctx.msImageSmoothingEnabled = false;
-            ctx.imageSmoothingEnabled = false;
-            this.ctx = ctx;
-            $(ctx.canvas).on('mousedown mousemove touchstart touchmove', e => this.draw(e))
-            //ctx.fillRect(0, 0, 500, 500);
-        }
-        draw(e){
-            if(!e.which) return;
-            const {offsetX, offsetY} = e.originalEvent;
-            console.log(e);
-            const unit = 1, erase = 0;
-            this.ctx[erase ? 'clearRect' : 'fillRect'](offsetX / inputZoom | 0, offsetY / inputZoom | 0, unit, unit);
-        }
+    hideScale.elm.on('change', () => cvScale.cv.css('opacity', Number(!hideScale())));
+    LayeredCanvas.init($('<div>').appendTo(foot));
+    addBtn($('<div>').appendTo(foot), '画像として保存', () => {
+        const {width, height} = cvScale.ctx.canvas,
+              cv = $('<canvas>').prop({width, height}),
+              ctx = cv.get(0).getContext('2d');
+        for(const {cv} of [
+            cvMaze,
+            hideScale() ? [] : cvScale
+        ].flat()) ctx.drawImage(cv.get(0), 0, 0);
+        $('<a>').attr({
+            href: cv.get(0).toDataURL(),
+            download: 'maze.png'
+        }).get(0).click();
+    });
+    const cvMaze = new LayeredCanvas('rgba(127, 127, 127, 1)'),
+          cvScale = new LayeredCanvas('rgba(0, 0, 0, 1)');
+    const xyStart = [-1, -1],
+          xyGoal = [-1, -1];
+    {
+        const xyLast = [-1, -1],
+              deltaTime = 100;
+        let lastTime = -1;
+        cvScale.onDraw((x, y, erase) => {
+            const now = performance.now();
+            for(const [_x, _y] of now - lastTime > deltaTime ? [[x, y]] : lerp(x, y, ...xyLast)) {
+                cvMaze.draw(_x, _y, erase);
+                g_maze[toI(_x, _y)] = !erase;
+            }
+            xyLast[0] = x;
+            xyLast[1] = y;
+            lastTime = now;
+        }, () => eraseFlag());
     }
-    for(const i of new Array(5)) new Canvas(cvHolder);
 })();
