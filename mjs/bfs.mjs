@@ -1,4 +1,4 @@
-export const dfs = async ({maze, start, width, height, update}) => {
+export const bfs = async ({maze, start, width, height, update}) => {
     const toI = (x, y) => x + y * width;
     const toXY = i => {
         const x = i % width,
@@ -19,12 +19,12 @@ export const dfs = async ({maze, start, width, height, update}) => {
     };
     const _start = toI(...start),
           road = maze[_start],
-          stack = [_start],
+          queue = [_start],
           done = new Set;
-    while(stack.length) {
-        const _i = stack.pop();
+    while(queue.length) {
+        const _i = queue.shift();
         done.add(_i);
         await update(_i);
-        for(const i of getAbled(_i)) stack.push(i);
+        for(const i of getAbled(_i)) queue.push(i);
     }
 };
