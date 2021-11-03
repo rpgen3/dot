@@ -43,20 +43,28 @@
     const leftUI = $('<dl>').appendTo(body), // レイヤーの選択など
           centerUI = $('<dl>').appendTo(body), // canvas用
           rightUI = $('<dl>').appendTo(body); // パレットなど
-    let g_nowFlame = null;
-    class Flame {
+    class Layer {
         constructor(){
             this.list = [];
         }
         add(){
             const tmp = new DotCanvas();
-            cvScale.before(tmp.cv);
+            cvScale.cv.before(tmp.cv);
             this.list.push(tmp);
-            g_nowCanvas = tmp;
+            return tmp;
         }
     }
+    const selectCanvas = rpgen3.addSelect(leftUI, {
+        label: 'レイヤーの選択',
+        list: []
+    });
+    selectCanvas.elm.on('change', () => {
+        g_nowCanvas = selectCanvas();
+    });
+    let g_nowLayer = new Layer();
     addBtn(leftUI, 'レイヤーを追加', () => {
-        g_nowFlame.add();
+        g_nowCanvas = g_nowLayer.add();
+        selectCanvas.update([...g_nowLayer.list.entries()]);
     });
     LayeredCanvas.init($('<div>').appendTo(centerUI));
     const eraseFlag = rpgen3.addInputBool(rightUI, {
@@ -71,6 +79,7 @@
             this.elm = $('<div>').appendTo(rightUI);
             this.list = [];
             this.inputs = [];
+            this.covers = [];
         }
         add(){
             const id = this.list.length;
@@ -83,27 +92,38 @@
             }).on('change', ({target}) => {
                 this.list[id] = $(target).val();
             });
-            $('<div>').appendTo(holder).css({
+            const cover = $('<div>').appendTo(holder).css({
                 position: 'absolute',
                 left: 0,
                 top: 0,
-                width: input.width(),
-                height: input.height()
+                width: input.outerWidth(),
+                height: input.outerHeight()
             }).on('click', () => {
                 g_nowColorID = id;
+                const activeCover = 'activeCover';
+                $(`.${activeCover}`).removeClass(activeCover);
+                this.covers[g_nowColorID].addClass(activeCover);
             });
             this.inputs.push(input);
+            this.covers.push(cover);
             this.list.push([]);
+            cover.trigger('click');
         }
         set(id){
             if(id === -1) return;
             this.inputs[id].click();
         }
     };
-    addBtn(leftUI, '色定義を追加', () => {
+    $('<style>').appendTo(body).text(`
+    .activeCover {
+    outline: double 5px #4ec4d3;
+    outline-offset: -5px;
+}
+    `);
+    addBtn(rightUI, '色定義を追加', () => {
         color.add();
     });
-    addBtn(leftUI, '色定義を設定', () => {
+    addBtn(rightUI, '色定義を設定', () => {
         color.set(g_nowColorID);
     });
     //-----------------------------------------------------
@@ -131,7 +151,11 @@
     class DotCanvas extends LayeredCanvas {
         constructor(...arg){
             super(...arg);
-            const {width, height} = LayeredCanvas;
+            const {width, height, unit} = LayeredCanvas;
+            this.cv.prop({
+                width: width * unit + 1,
+                height: height * unit + 1
+            });
             this.data = this.make();
         }
         make(){
