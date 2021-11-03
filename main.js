@@ -24,6 +24,7 @@
         'dfs'
     ].map(v => `https://rpgen3.github.io/dot/mjs/${v}.mjs`));
     const addBtn = (h, ttl, func) => $('<button>').appendTo(h).text(ttl).on('click', func);
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
     $('<div>').appendTo(head).text('作成するドット絵の幅と高さを入力');
     const [inputW, inputH] = ['幅', '高さ'].map(label => rpgen3.addInputNum(head,{
         label, save: true,
@@ -199,19 +200,17 @@
             super.erase(x, y);
             if(value !== -1) super.draw(x, y, color.list[value]);
         }
-        fill(x, y, value = -1){ // 塗りつぶし
-            const {data, ctx} = this,
-                  {width, height, unit} = LayeredCanvas;
-            ctx.beginPath();
-            for(const [_x, _y] of rpgen4.dfs(data, x, y)) {
-                data[toI(_x, _y)] = value;
-                ctx.rect(...[_x, _y, 1, 1].map(v => v * unit));
-            }
-            ctx.clip();
-            if(value !== -1) {
-                ctx.fillStyle = color.list[value];
-                ctx.fill();
-            }
+        async fill(x, y, value = -1){ // 塗りつぶし
+            const {width, height} = LayeredCanvas;
+            return rpgen4.dfs({
+                maze: this.data.slice(),
+                start: [x, y],
+                width, height,
+                update: async (x, y) => {
+                    this.draw(x, y, value);
+                    await sleep(1);
+                }
+            });
         }
     }
 })();
