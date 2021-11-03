@@ -20,80 +20,153 @@
         'lerp'
     ].map(v => `https://rpgen3.github.io/maze/mjs/sys/${v}.mjs`));
     const addBtn = (h, ttl, func) => $('<button>').appendTo(h).text(ttl).on('click', func);
-    const msg = (() => {
-        const elm = $('<div>').appendTo(body);
-        return (str, isError) => $('<span>').appendTo(elm.empty()).text(str).css({
-            color: isError ? 'red' : 'blue',
-            backgroundColor: isError ? 'pink' : 'lightblue'
-        });
-    })();
-    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+    $('<div>').appendTo(head).text('作成するドット絵の幅と高さを入力');
     const [inputW, inputH] = ['幅', '高さ'].map(label => rpgen3.addInputNum(head,{
         label, save: true,
-        step: 2,
-        max: 299,
-        min: 5,
-        value: 25
+        max: 256,
+        min: 1,
+        value: 16
     }));
-    let g_maze = [],
-        g_w = -1,
-        g_h = -1;
-    const toI = (x, y) => x + y * g_w;
-    const toXY = i => {
-        const x = i % g_w,
-              y = i / g_w | 0;
-        return [x, y];
-    };
-    addBtn(head, '初期化', () => {
-        [g_w, g_h] = [inputW(), inputH()];
-        g_maze = [...Array(g_w * g_h).fill(false)];
-        const w = $(window).width();
+    addBtn(head, 'キャンバスを新規作成', () => {
+        const [width, height] = [inputW(), inputH()],
+              w = $(window).width();
         let unit = -1;
-        const divide = 0.9 / inputW;
+        const divide = 0.9 / width;
         if(w > 500) unit = Math.max(500, w * 0.5) * divide | 0;
         if(unit < 5) unit = w * divide | 0;
-        LayeredCanvas.update(unit, g_w, g_h);
+        LayeredCanvas.resize({width, height, unit});
         cvScale.drawScale();
+        head.hide();
         body.add(foot).show();
     });
-    const eraseFlag = rpgen3.addInputBool(foot, {
+    //-----------------------------------------------------
+    const leftUI = $('<dl>').appendTo(body), // レイヤーの選択など
+          centerUI = $('<dl>').appendTo(body), // canvas用
+          rightUI = $('<dl>').appendTo(body); // パレットなど
+    let g_nowFlame = null;
+    class Flame {
+        constructor(){
+            this.list = [];
+        }
+        add(){
+            const tmp = new DotCanvas();
+            cvScale.before(tmp.cv);
+            this.list.push(tmp);
+            g_nowCanvas = tmp;
+        }
+    }
+    addBtn(leftUI, 'レイヤーを追加', () => {
+        g_nowFlame.add();
+    });
+    LayeredCanvas.init($('<div>').appendTo(centerUI));
+    const eraseFlag = rpgen3.addInputBool(rightUI, {
         label: '消しゴム'
     });
-    const hideScale = rpgen3.addInputBool(foot, {
+    const hideScale = rpgen3.addInputBool(rightUI, {
         label: '目盛りを非表示'
     });
     hideScale.elm.on('change', () => cvScale.cv.css('opacity', Number(!hideScale())));
-    LayeredCanvas.init($('<div>').appendTo(foot));
-    addBtn($('<div>').appendTo(foot), '画像として保存', () => {
-        const {width, height} = cvScale.ctx.canvas,
-              cv = $('<canvas>').prop({width, height}),
-              ctx = cv.get(0).getContext('2d');
-        for(const {cv} of [
-            cvMaze,
-            hideScale() ? [] : cvScale
-        ].flat()) ctx.drawImage(cv.get(0), 0, 0);
-        $('<a>').attr({
-            href: cv.get(0).toDataURL(),
-            download: 'maze.png'
-        }).get(0).click();
+    const color = new class {
+        constructor(){
+            this.elm = $('<div>').appendTo(rightUI);
+            this.list = [];
+            this.inputs = [];
+        }
+        add(){
+            const id = this.list.length;
+            const holder = $('<div>').appendTo(this.elm).css({
+                position: 'relative',
+                display: 'inline-block'
+            });
+            const input = $('<input>').appendTo(holder).prop({
+                type: 'color'
+            }).on('change', ({target}) => {
+                this.list[id] = $(target).val();
+            });
+            $('<div>').appendTo(holder).css({
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                width: input.width(),
+                height: input.height()
+            }).on('click', () => {
+                g_nowColorID = id;
+            });
+            this.inputs.push(input);
+            this.list.push([]);
+        }
+        set(id){
+            if(id === -1) return;
+            this.inputs[id].click();
+        }
+    };
+    addBtn(leftUI, '色定義を追加', () => {
+        color.add();
     });
+    addBtn(leftUI, '色定義を設定', () => {
+        color.set(g_nowColorID);
+    });
+    //-----------------------------------------------------
     const cvMaze = new LayeredCanvas('rgba(127, 127, 127, 1)'),
           cvScale = new LayeredCanvas('rgba(0, 0, 0, 1)');
-    const xyStart = [-1, -1],
-          xyGoal = [-1, -1];
+    let g_nowCanvas = null,
+        g_nowColorID = -1;
     {
         const xyLast = [-1, -1],
               deltaTime = 100;
         let lastTime = -1;
         cvScale.onDraw((x, y, erase) => {
-            const now = performance.now();
+            if(!g_nowCanvas) return;
+            const now = performance.now(),
+                  v = erase ? -1 : g_nowColorID;
             for(const [_x, _y] of now - lastTime > deltaTime ? [[x, y]] : lerp(x, y, ...xyLast)) {
-                cvMaze.draw(_x, _y, erase);
-                g_maze[toI(_x, _y)] = !erase;
+                g_nowCanvas.draw(_x, _y, v);
             }
             xyLast[0] = x;
             xyLast[1] = y;
             lastTime = now;
         }, () => eraseFlag());
+    }
+    const {toI, toXY} = LayeredCanvas;
+    class DotCanvas extends LayeredCanvas {
+        constructor(...arg){
+            super(...arg);
+            const {width, height} = LayeredCanvas;
+            this.data = this.make();
+        }
+        make(){
+            const {width, height} = LayeredCanvas;
+            return [...new Array(width * height).fill(-1)];
+        }
+        clear(){
+            this.data = this.make();
+            super.clear();
+        }
+        update(){
+            super.clear();
+            for(const [i, v] of this.data.entries()) if(v !== -1) super.draw(...toXY(i), color.list[v]);
+        }
+        draw(x, y, value = -1){
+            const {data} = this,
+                  i = toI(x, y);
+            if(data[i] === i) return;
+            data[i] = value;
+            super.erase(x, y);
+            if(value !== -1) super.draw(x, y, color.list[value]);
+        }
+        fill(x, y, value = -1){ // 塗りつぶし
+            const {data, ctx} = this,
+                  {width, height, unit} = LayeredCanvas;
+            ctx.beginPath();
+            for(const [_x, _y] of dfs(x, y)) {
+                data[toI(_x, _y)] = value;
+                ctx.rect(...[_x, _y, 1, 1].map(v => v * unit));
+            }
+            ctx.clip();
+            if(value !== -1) {
+                ctx.fillStyle = color.list[value];
+                ctx.fill();
+            }
+        }
     }
 })();
