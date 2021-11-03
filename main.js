@@ -21,7 +21,7 @@
         'lerp'
     ].map(v => `https://rpgen3.github.io/maze/mjs/sys/${v}.mjs`));
     const rpgen4 = await importAll([
-        'dfs'
+        'bfs'
     ].map(v => `https://rpgen3.github.io/dot/mjs/${v}.mjs`));
     const addBtn = (h, ttl, func) => $('<button>').appendTo(h).text(ttl).on('click', func);
     const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -214,7 +214,7 @@
         async fill(x, y, value = -1){ // 塗りつぶし
             if(this.data[toI(x, y)] === value) return;
             const {width, height} = LayeredCanvas;
-            return rpgen4.dfs({
+            return rpgen4.bfs({
                 maze: this.data.slice(),
                 start: [x, y],
                 width, height,
