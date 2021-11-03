@@ -195,12 +195,13 @@
         draw(x, y, value = -1){
             const {data} = this,
                   i = toI(x, y);
-            if(data[i] === i) return;
+            if(data[i] === value) return;
             data[i] = value;
             super.erase(x, y);
             if(value !== -1) super.draw(x, y, color.list[value]);
         }
         async fill(x, y, value = -1){ // 塗りつぶし
+            if(this.data[toI(x, y)] === value) return;
             const {width, height} = LayeredCanvas;
             return rpgen4.dfs({
                 maze: this.data.slice(),
