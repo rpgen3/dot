@@ -23,8 +23,10 @@ export const bfs = async ({maze, start, width, height, update}) => {
           done = new Set;
     while(queue.length) {
         const _i = queue.shift();
-        done.add(_i);
         await update(_i);
-        for(const i of getAbled(_i)) queue.push(i);
+        for(const i of getAbled(_i)) {
+            queue.push(i);
+            done.add(i);
+        }
     }
 };
