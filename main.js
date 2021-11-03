@@ -214,13 +214,14 @@
         async fill(x, y, value = -1){ // 塗りつぶし
             if(this.data[toI(x, y)] === value) return;
             const {width, height} = LayeredCanvas;
+            let cnt = 0;
             return rpgen4.bfs({
                 maze: this.data.slice(),
                 start: [x, y],
                 width, height,
                 update: async i => {
                     this.draw(...toXY(i), value);
-                    await sleep(1);
+                    if(!(++cnt % 1000)) await sleep(0);
                 }
             });
         }
