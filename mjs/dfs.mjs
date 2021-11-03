@@ -1,4 +1,4 @@
-const dfs = async ({maze, start, width, height, update}) => {
+export const dfs = async ({maze, start, width, height, update}) => {
     const toI = (x, y) => x + y * width;
     const toXY = i => {
         const x = i % width,
@@ -23,6 +23,7 @@ const dfs = async ({maze, start, width, height, update}) => {
           done = new Set;
     while(stack.length) {
         const _i = stack.pop();
+        done.add(_i);
         await update(_i);
         for(const i of getAbled(_i)) stack.push(i);
     }
