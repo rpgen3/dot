@@ -206,8 +206,8 @@
                 maze: this.data.slice(),
                 start: [x, y],
                 width, height,
-                update: async (x, y) => {
-                    this.draw(x, y, value);
+                update: async i => {
+                    this.draw(...toXY(i), value);
                     await sleep(1);
                 }
             });
