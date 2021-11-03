@@ -13,7 +13,8 @@
     const rpgen3 = await importAll([
         'input',
         'util',
-        'random'
+        'random',
+        'css'
     ].map(v => `https://rpgen3.github.io/mylib/export/${v}.mjs`));
     const {LayeredCanvas, lerp} = await importAll([
         'LayeredCanvas',
@@ -54,17 +55,31 @@
             return tmp;
         }
     }
+    const inputOpacity = rpgen3.addInputNum(leftUI, {
+        label: 'レイヤーの不透明度',
+        max: 1,
+        min: 0,
+        step: 0.1
+    });
+    inputOpacity.elm.on('input', () => {
+        g_nowCanvas && g_nowCanvas.cv.css('opacity', inputOpacity());
+    });
+    const updateInputOpacity = () => inputOpacity(rpgen3.getCSS(g_nowCanvas.cv).opacity);
     const selectCanvas = rpgen3.addSelect(leftUI, {
         label: 'レイヤーの選択',
         list: []
     });
     selectCanvas.elm.on('change', () => {
         g_nowCanvas = selectCanvas();
+        updateInputOpacity();
     });
     let g_nowLayer = new Layer();
     addBtn(leftUI, 'レイヤーを追加', () => {
         g_nowCanvas = g_nowLayer.add();
-        selectCanvas.update([...g_nowLayer.list.entries()]);
+        const {list} = g_nowLayer;
+        selectCanvas.update([...list.entries()]);
+        selectCanvas(list.length - 1);
+        updateInputOpacity();
     });
     LayeredCanvas.init($('<div>').appendTo(centerUI));
     const eraseFlag = rpgen3.addInputBool(rightUI, {
@@ -91,6 +106,9 @@
                 type: 'color'
             }).on('change', ({target}) => {
                 this.list[id] = $(target).val();
+                for(const cv of g_nowLayer.list){
+                    if(cv.data.includes(id)) cv.update();
+                }
             });
             const cover = $('<div>').appendTo(holder).css({
                 position: 'absolute',
