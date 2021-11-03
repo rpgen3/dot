@@ -20,6 +20,9 @@
         'LayeredCanvas',
         'lerp'
     ].map(v => `https://rpgen3.github.io/maze/mjs/sys/${v}.mjs`));
+    const rpgen4 = await importAll([
+        'dfs'
+    ].map(v => `https://rpgen3.github.io/dot/mjs/${v}.mjs`));
     const addBtn = (h, ttl, func) => $('<button>').appendTo(h).text(ttl).on('click', func);
     $('<div>').appendTo(head).text('作成するドット絵の幅と高さを入力');
     const [inputW, inputH] = ['幅', '高さ'].map(label => rpgen3.addInputNum(head,{
@@ -200,7 +203,7 @@
             const {data, ctx} = this,
                   {width, height, unit} = LayeredCanvas;
             ctx.beginPath();
-            for(const [_x, _y] of dfs(x, y)) {
+            for(const [_x, _y] of rpgen4.dfs(data, x, y)) {
                 data[toI(_x, _y)] = value;
                 ctx.rect(...[_x, _y, 1, 1].map(v => v * unit));
             }
