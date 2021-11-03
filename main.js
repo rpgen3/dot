@@ -89,6 +89,9 @@
     const eraseFlag = rpgen3.addInputBool(rightUI, {
         label: '消しゴム'
     });
+    const fillFlag = rpgen3.addInputBool(rightUI, {
+        label: '塗りつぶす'
+    });
     const hideScale = rpgen3.addInputBool(rightUI, {
         label: '目盛りを非表示'
     });
@@ -156,17 +159,25 @@
     {
         const xyLast = [-1, -1],
               deltaTime = 100;
-        let lastTime = -1;
-        cvScale.onDraw((x, y, erase) => {
-            if(!g_nowCanvas) return;
+        let lastTime = -1,
+            busy = false;
+        cvScale.onDraw(async (x, y, erase) => {
+            if(!g_nowCanvas || busy) return;
             const now = performance.now(),
                   v = erase ? -1 : g_nowColorID;
-            for(const [_x, _y] of now - lastTime > deltaTime ? [[x, y]] : lerp(x, y, ...xyLast)) {
-                g_nowCanvas.draw(_x, _y, v);
+            if(fillFlag()) {
+                busy = true;
+                await g_nowCanvas.fill(x, y, v);
+                busy = false;
             }
-            xyLast[0] = x;
-            xyLast[1] = y;
-            lastTime = now;
+            else {
+                for(const [_x, _y] of now - lastTime > deltaTime ? [[x, y]] : lerp(x, y, ...xyLast)) {
+                    g_nowCanvas.draw(_x, _y, v);
+                }
+                xyLast[0] = x;
+                xyLast[1] = y;
+                lastTime = now;
+            }
         }, () => eraseFlag());
     }
     const {toI, toXY} = LayeredCanvas;
