@@ -189,15 +189,11 @@
                 width: width * unit + 1,
                 height: height * unit + 1
             });
-            this.data = this.make();
-        }
-        make(){
-            const {width, height} = LayeredCanvas;
-            return [...new Array(width * height).fill(-1)];
+            this.data = [...new Array(width * height).fill(-1)];
         }
         clear(){
-            this.data = this.make();
             super.clear();
+            this.data.fill(-1);
         }
         update(){
             super.clear();
