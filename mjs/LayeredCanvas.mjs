@@ -53,7 +53,7 @@ export class LayeredCanvas {
                     _y - top
             ].map(v => v / unit | 0),
             erase = buttons === 2 || isErase();
-            if(obs.changed(x, y, erase)) callback(x, y, erase);
+            if(observe.changed(x, y, erase)) callback(x, y, erase);
         });
     }
     drawScale(){
