@@ -1,30 +1,27 @@
 (async () => {
     const {importAll, getScript, importAllSettled} = await import(`https://rpgen3.github.io/mylib/export/import.mjs`);
     await getScript('https://code.jquery.com/jquery-3.3.1.min.js');
-    const $ = window.$;
+    const {$} = window;
     const html = $('body').empty().css({
         'text-align': 'center',
         padding: '1em',
         'user-select': 'none'
     });
-    const head = $('<dl>').appendTo(html),
-          body = $('<dl>').appendTo(html).hide(),
-          foot = $('<dl>').appendTo(html).hide();
+    const head = $('<header>').appendTo(html),
+          main = $('<main>').appendTo(html),
+          foot = $('<footer>').appendTo(html);
     const rpgen3 = await importAll([
         'input',
         'util',
         'random',
         'css'
     ].map(v => `https://rpgen3.github.io/mylib/export/${v}.mjs`));
-    const {LayeredCanvas, lerp} = await importAll([
-        'LayeredCanvas',
-        'lerp'
-    ].map(v => `https://rpgen3.github.io/maze/mjs/sys/${v}.mjs`));
     const rpgen4 = await importAll([
-        'bfs'
-    ].map(v => `https://rpgen3.github.io/dot/mjs/${v}.mjs`));
-    const addBtn = (h, ttl, func) => $('<button>').appendTo(h).text(ttl).on('click', func);
-    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+        'https://rpgen3.github.io/maze/mjs/sys/lerp.mjs',
+        'https://rpgen3.github.io/dot/mjs/bfs.mjs',
+        'https://rpgen3.github.io/dot/mjs/LayeredCanvas.mjs'
+    ]);
+    const {lerp, LayeredCanvas, bfs} = rpgen4;
     $('<div>').appendTo(head).text('作成するドット絵の幅と高さを入力');
     const [inputW, inputH] = ['幅', '高さ'].map(label => rpgen3.addInputNum(head,{
         label, save: true,
@@ -32,22 +29,22 @@
         min: 1,
         value: 16
     }));
-    addBtn(head, 'キャンバスを新規作成', () => {
+    const htmlCanvas = await new Promise(resolve => rpgen3.addBtn(head, 'キャンバスを新規作成', () => {
         const [width, height] = [inputW(), inputH()],
               w = $(window).width();
         let unit = -1;
         const divide = 0.9 / width;
         if(w > 500) unit = Math.max(500, w * 0.5) * divide | 0;
         if(unit < 5) unit = w * divide | 0;
-        LayeredCanvas.resize({width, height, unit});
-        cvScale.drawScale();
-        head.hide();
-        body.add(foot).show();
-    });
+        const html = $('<div>');
+        LayeredCanvas.init({html, unit, width, height});
+        //cvScale.drawScale();
+        resolve(html);
+    }));
     //-----------------------------------------------------
-    const leftUI = $('<dl>').appendTo(body), // レイヤーの選択など
-          centerUI = $('<dl>').appendTo(body), // canvas用
-          rightUI = $('<dl>').appendTo(body); // パレットなど
+    const leftUI = $('<dl>').appendTo(main), // レイヤーの選択など
+          centerUI = $('<dl>').appendTo(main), // canvas用
+          rightUI = $('<dl>').appendTo(main); // パレットなど
     class Layer {
         constructor(){
             this.list = [];
@@ -78,14 +75,14 @@
         updateInputOpacity();
     });
     let g_nowLayer = new Layer();
-    addBtn(leftUI, 'レイヤーを追加', () => {
+    rpgen3.addBtn(leftUI, 'レイヤーを追加', () => {
         g_nowCanvas = g_nowLayer.add();
         const {list} = g_nowLayer;
         selectCanvas.update([...list.entries()]);
         selectCanvas(list.length - 1);
         updateInputOpacity();
     });
-    LayeredCanvas.init($('<div>').appendTo(centerUI));
+    htmlCanvas.appendTo(centerUI);
     const eraseFlag = rpgen3.addInputBool(rightUI, {
         label: '消しゴム'
     });
@@ -139,16 +136,16 @@
             this.inputs[id].click();
         }
     };
-    $('<style>').appendTo(body).text(`
+    $('<style>').appendTo(main).text(`
     .activeCover {
     outline: double 5px #4ec4d3;
     outline-offset: -5px;
 }
     `);
-    addBtn(rightUI, '色定義を追加', () => {
+    rpgen3.addBtn(rightUI, '色定義を追加', () => {
         color.add();
     });
-    addBtn(rightUI, '色定義を設定', () => {
+    rpgen3.addBtn(rightUI, '色定義を設定', () => {
         color.set(g_nowColorID);
     });
     //-----------------------------------------------------
@@ -185,10 +182,6 @@
         constructor(...arg){
             super(...arg);
             const {width, height, unit} = LayeredCanvas;
-            this.cv.prop({
-                width: width * unit + 1,
-                height: height * unit + 1
-            });
             this.data = [...new Array(width * height).fill(-1)];
         }
         clear(){
@@ -217,7 +210,7 @@
                 width, height,
                 update: async i => {
                     this.draw(...toXY(i), value);
-                    if(!(++cnt % 1000)) await sleep(0);
+                    if(!(++cnt % 1000)) await rpgen3.sleep(0);
                 }
             });
         }
