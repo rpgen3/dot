@@ -36,7 +36,7 @@ export class LayeredCanvas {
     }
     onDraw(callback, isErase){
         this.cv.bind('contextmenu', () => false).on('mousedown mousemove touchstart touchmove', e => {
-            const {unit} = LayeredCanvas;
+            const {unit, observe} = LayeredCanvas;
             e.preventDefault();
             const {clientX, clientY, buttons, which, type, originalEvent} = e;
             let _x = clientX,
