@@ -177,7 +177,6 @@
             }
         }, () => eraseFlag());
     }
-    const {toI, toXY} = LayeredCanvas;
     class DotCanvas extends LayeredCanvas {
         constructor(...arg){
             super(...arg);
@@ -190,18 +189,18 @@
         }
         update(){
             super.clear();
-            for(const [i, v] of this.data.entries()) if(v !== -1) super.draw(...toXY(i), color.list[v]);
+            for(const [i, v] of this.data.entries()) if(v !== -1) super.draw(...LayeredCanvas.toXY(i), color.list[v]);
         }
         draw(x, y, value = -1){
             const {data} = this,
-                  i = toI(x, y);
+                  i = LayeredCanvas.toI(x, y);
             if(data[i] === value) return;
             data[i] = value;
             super.erase(x, y);
             if(value !== -1) super.draw(x, y, color.list[value]);
         }
         async fill(x, y, value = -1){ // 塗りつぶし
-            if(this.data[toI(x, y)] === value) return;
+            if(this.data[LayeredCanvas.toI(x, y)] === value) return;
             const {width, height} = LayeredCanvas;
             let cnt = 0;
             return rpgen4.bfs({
@@ -209,7 +208,7 @@
                 start: [x, y],
                 width, height,
                 update: async i => {
-                    this.draw(...toXY(i), value);
+                    this.draw(...LayeredCanvas.toXY(i), value);
                     if(!(++cnt % 1000)) await rpgen3.sleep(0);
                 }
             });
