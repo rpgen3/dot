@@ -8,15 +8,17 @@ export class LayeredCanvas {
     constructor(color){
         const {html, unit, width, height} = LayeredCanvas;
         this.color = color;
-        this.cv = $('<canvas>').prop({
+        const param = {
             width: width * unit + 1,
             height: height * unit + 1
-        }).css({
+        };
+        this.cv = $('<canvas>').prop(param).css({
             position: 'absolute',
             left: 0,
             top: 0
         }).appendTo(html);
         this.ctx = this.cv.get(0).getContext('2d');
+        this.constructor.html.css(param);
     }
     draw(x, y, color){
         const {unit} = LayeredCanvas;
@@ -42,17 +44,17 @@ export class LayeredCanvas {
             let _x = clientX,
                 _y = clientY;
             if(type.includes('touch')){
-            const {clientX, clientY} = originalEvent.touches[0];
+                const {clientX, clientY} = originalEvent.touches[0];
                 _x = clientX;
                 _y = clientY;
             }
             else if(!which) return;
             const {left, top} = originalEvent.target.getBoundingClientRect(),
-                [x, y] = [
-                    _x - left,
-                    _y - top
-            ].map(v => v / unit | 0),
-            erase = buttons === 2 || isErase();
+                  [x, y] = [
+                      _x - left,
+                      _y - top
+                  ].map(v => v / unit | 0),
+                  erase = buttons === 2 || isErase();
             if(observe.changed(x, y, erase)) callback(x, y, erase);
         });
     }
