@@ -40,7 +40,7 @@ export class LayeredCanvas {
         this.cv.bind('contextmenu', () => false).on('mousedown mousemove touchstart touchmove', e => {
             const {unit, observe} = LayeredCanvas;
             e.preventDefault();
-            const {clientX, clientY, buttons, which, type, originalEvent} = e;
+            const {clientX, clientY, buttons, type, originalEvent} = e;
             let _x = clientX,
                 _y = clientY;
             if(type.includes('touch')){
@@ -48,7 +48,7 @@ export class LayeredCanvas {
                 _x = clientX;
                 _y = clientY;
             }
-            else if(!which) return;
+            else if((buttons&1)===0) return;
             const {left, top} = originalEvent.target.getBoundingClientRect(),
                   [x, y] = [
                       _x - left,
